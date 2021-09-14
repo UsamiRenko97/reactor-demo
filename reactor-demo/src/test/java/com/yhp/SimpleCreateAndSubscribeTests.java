@@ -14,7 +14,7 @@ import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class SpringBootDemoApplicationTests {
+public class SimpleCreateAndSubscribeTests {
 
     @Test
     public void createDemo() {
@@ -45,4 +45,6 @@ public class SpringBootDemoApplicationTests {
 
         ints.subscribe(ss);
     }
+
+
 }
