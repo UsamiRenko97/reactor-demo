@@ -71,6 +71,7 @@ public class ProgrammaticalCreateTests {
     @Test
     public void createTest() {
         CountDownLatch countDownLatch = new CountDownLatch(1);
+        //自定义异步处理器
         MyEventProcessor<String> myEventProcessor = new MyEventProcessor<>(countDownLatch);
         Flux<String> bridge = Flux.create(sink -> myEventProcessor.register(new MyEventListener<String>() {
             @Override
