@@ -15,26 +15,19 @@ import java.util.concurrent.CountDownLatch;
  * @date
  */
 
-public class MyEventProcessor<T extends String> implements Runnable {
-    public MyEventProcessor(CountDownLatch countDownLatch) {
-        this.countDownLatch = countDownLatch;
-    }
+public class MyEventProcessor<T extends String> {
 
     private MyEventListener<T> listener;
-    private final CountDownLatch countDownLatch;
 
     public void register(MyEventListener<T> listener) {
         this.listener = listener;
     }
 
-
-    @Override
-    public void run() {
+    public void processEvent() {
         List<T> trunk = prepareData();
         listener.onDataChunk(trunk);
         processData();
         listener.processComplete();
-        countDownLatch.countDown();
     }
 
     private List<T> prepareData() {

@@ -70,9 +70,8 @@ public class ProgrammaticalCreateTests {
      */
     @Test
     public void createTest() {
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        //自定义异步处理器
-        MyEventProcessor<String> myEventProcessor = new MyEventProcessor<>(countDownLatch);
+        //自定义事件处理器
+        MyEventProcessor<String> myEventProcessor = new MyEventProcessor<>();
         Flux<String> bridge = Flux.create(sink -> myEventProcessor.register(new MyEventListener<String>() {
             @Override
             public void onDataChunk(List<String> chunk) {
@@ -90,13 +89,7 @@ public class ProgrammaticalCreateTests {
             //控制下游的背压请求，默认BUFFER为缓存住下游尚未处理的元素，可能导致OOM
         }), FluxSink.OverflowStrategy.BUFFER);
         bridge.subscribe(e -> System.out.println("get data: "+e));
-        new Thread(myEventProcessor).start();
-        try {
-            countDownLatch.await();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        myEventProcessor.processEvent();
     }
-
 
 }
