@@ -11,8 +11,6 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
-import java.net.ServerSocket;
-import java.nio.channels.SocketChannel;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -165,4 +163,29 @@ public class ProgrammaticalCreateTests {
         dispose.dispose();
     }
 
+
+    /**
+     * Flux对象的handle方法可以对Flux中的元素进行处理。
+     */
+    @Test
+    public void handleTest() {
+        Flux<String> alphabet = Flux.just(-1, 30, 13, 9, 20)
+                .handle((i, sink) -> {
+                    String letter = alphabet(i);
+                    //过滤掉Flux中的null元素
+                    if (letter != null) {
+                        sink.next(letter);
+                    }
+                });
+
+        alphabet.subscribe(System.out::println);
+    }
+
+    public String alphabet(int letterNumber) {
+        if (letterNumber < 1 || letterNumber > 26) {
+            return null;
+        }
+        int letterIndexAscii = 'A' + letterNumber - 1;
+        return "" + (char) letterIndexAscii;
+    }
 }
