@@ -1,6 +1,8 @@
 package com.yhp.processor;
 
 import com.yhp.intf.MyEventListener;
+import org.reactivestreams.Subscription;
+import reactor.core.publisher.BaseSubscriber;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,14 @@ public class MyEventProcessor<T extends String> {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
 
+    public List<T> request(long n) {
+        System.out.println("processor receive request ["+n+"]");
+        List<T> trunk = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            trunk.add((T) ("request "+ i));
+        }
+        return trunk;
     }
 }

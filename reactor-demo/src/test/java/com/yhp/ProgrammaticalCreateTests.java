@@ -1,16 +1,19 @@
 package com.yhp;
 
+import com.yhp.channel.MyServerSocketChannel;
 import com.yhp.intf.MyEventListener;
 import com.yhp.processor.MyEventProcessor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
+import java.net.ServerSocket;
+import java.nio.channels.SocketChannel;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -67,11 +70,13 @@ public class ProgrammaticalCreateTests {
      * create方法生成的flux既可以是同步的，也可以是异步的，并且每次可以发出多个元素。
      * 与generate相比，create不需要state，并且可以在回调中触发多个事件。
      * create可以将现有的API转为响应式API，如监听器的异步方法。
+     * 与push方法不同的是，create可以多线程生成元素，而push只用一个线程生成元素
      */
     @Test
     public void createTest() {
         //自定义事件处理器
         MyEventProcessor<String> myEventProcessor = new MyEventProcessor<>();
+        //如果需要单线程生成Flux，可以使用Flux.push
         Flux<String> bridge = Flux.create(sink -> myEventProcessor.register(new MyEventListener<String>() {
             @Override
             public void onDataChunk(List<String> chunk) {
@@ -86,10 +91,78 @@ public class ProgrammaticalCreateTests {
                 System.out.println("data has been processed.");
                 sink.complete();
             }
-            //控制下游的背压请求，默认BUFFER为缓存住下游尚未处理的元素，可能导致OOM
+            //溢出策略，控制下游的背压请求，默认BUFFER为缓存住下游尚未处理的元素，可能导致OOM
         }), FluxSink.OverflowStrategy.BUFFER);
         bridge.subscribe(e -> System.out.println("get data: "+e));
         myEventProcessor.processEvent();
+    }
+
+    /**
+     * create方法可以主动从数据源拉取数据。
+     */
+    @Test
+    public void pullTest() {
+        //自定义事件处理器
+        MyEventProcessor<String> myEventProcessor = new MyEventProcessor<>();
+
+        Flux<String> bridge = Flux.create(sink -> {
+            myEventProcessor.register(new MyEventListener<String>() {
+                @Override
+                public void onDataChunk(List<String> chunk) {
+                    System.out.println("chunk data has been prepared.");
+                    for (String s : chunk) {
+                        //监听processor产生数据，推送到Flux中
+                        sink.next(s);
+                    }
+                }
+                @Override
+                public void processComplete() {
+                    System.out.println("data has been processed.");
+                    sink.complete();
+                }
+            });
+
+            //从processor中拉取数据，放入Flux中
+            sink.onRequest(n -> {
+                List<String> messages = myEventProcessor.request(n);
+                for (String message : messages) {
+                    sink.next(message);
+                }
+            });
+        }, FluxSink.OverflowStrategy.BUFFER);
+        bridge.subscribe(e -> System.out.println("get data: "+e));
+        myEventProcessor.processEvent();
+    }
+
+    /**
+     * onDispose: Flux完成、有错误、或被取消时执行清理
+     * onCancel: 取消时执行，先于onDispose执行
+     */
+    @Test
+    public void cleanUpTest() {
+        MyServerSocketChannel channel = new MyServerSocketChannel();
+
+        Flux<String> flux = Flux.create(sink -> {
+            sink.onRequest(n -> {
+                List<String> poll = channel.poll(n);
+                for (String s : poll) {
+                    sink.next(s);
+                }
+            }).onCancel(channel::cancel)
+              .onDispose(channel::close);
+        });
+
+        Disposable dispose = flux.subscribe(e -> {
+            System.out.println("get channel data: " + e);
+            try {
+                Thread.sleep(2000);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        //停止向Flux中推数据
+        dispose.dispose();
     }
 
 }
